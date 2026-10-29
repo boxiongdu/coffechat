@@ -54,3 +54,7 @@ All outreach needs human approval. Follow-up dates are informational and do not 
 **Deployment caution:** The app still uses SQLite; a file committed to GitHub is not durable writable cloud storage. Streamlit Community Cloud may lose database writes after restarts. Restrict app access, and migrate to persistent storage before relying on it for real contact records.
 
 No automated search, scraping, invitations, or follow-ups.
+
+### Flexible candidate search criteria
+
+The Discover candidates tab accepts custom company names and current role titles, separated by commas or newlines. Shared background is optional; leaving it blank generates searches from company and role only. No API keys required.
