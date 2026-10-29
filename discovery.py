@@ -1,7 +1,6 @@
 """Candidate discovery through an authorized search API; no LinkedIn site automation."""
 import sqlite3
 from urllib.parse import urlparse
-import ipaddress
 from urllib.parse import quote_plus
 
 TARGET_ROLES = ['Associate Product Manager', 'Product Manager', 'Technical Product Manager', 'AI Product Manager']
