@@ -25,3 +25,10 @@ def test_leads_review(tmp_path):
     assert get_leads(con)[0]['name']=='Jane'
     assert get_leads(con)[0]['review_status']=='Verified'
     with pytest.raises(ValueError): save_lead(con,dict(url='https://www.linkedin.com/in/jane'))
+
+
+def test_search_url():
+    from discovery import search_url
+    url = search_url('Visa Product Manager Northwestern')
+    assert url.startswith('https://www.google.com/search?q=')
+    assert 'Visa' in url
