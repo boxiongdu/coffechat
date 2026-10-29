@@ -1,5 +1,4 @@
-"""Candidate discovery through an authorized search API; no LinkedIn site automation."""
-import sqlite3
+"""Manual public-web search links and candidate review; no LinkedIn automation."""
 from urllib.parse import urlparse
 from urllib.parse import quote_plus
 
@@ -9,18 +8,20 @@ TARGET_SCHOOLS = ['Northwestern University', 'Vassar College']
 
 
 def discovery_queries(roles=None, companies=None, schools=None, limit=12):
-    roles = roles or TARGET_ROLES
-    companies = companies or TARGET_COMPANIES
-    schools = schools or TARGET_SCHOOLS
-    # Discover via independently published employee biographies, interviews, and websites.
-    # Do not target LinkedIn profiles through another search provider.
+    """Generate queries from user-entered roles/companies; background is optional."""
+    roles = [x.strip() for x in (roles or []) if x.strip()]
+    companies = [x.strip() for x in (companies or []) if x.strip()]
+    schools = [x.strip() for x in (schools or []) if x.strip()]
+    if not roles or not companies:
+        return []
     queries = []
     for company in companies:
-        for role in roles[:2]:
-            queries.append(f'"{company}" "{role}" biography -site:linkedin.com -site:linkedin.cn')
-        for school in schools[:1]:
-            queries.append(f'"{company}" "{school}" product management biography -site:linkedin.com')
-    return queries[:limit]
+        for role in roles:
+            base = f'"{company}" "{role}" biography -site:linkedin.com -site:linkedin.cn'
+            queries.append(base)
+            for school in schools:
+                queries.append(f'"{company}" "{role}" "{school}" biography -site:linkedin.com -site:linkedin.cn')
+    return list(dict.fromkeys(queries))[:max(0, limit)]
 
 
 def safe_source_url(url):
