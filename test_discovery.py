@@ -32,3 +32,18 @@ def test_search_url():
     url = search_url('Visa Product Manager Northwestern')
     assert url.startswith('https://www.google.com/search?q=')
     assert 'Visa' in url
+
+def test_optional_background_and_custom_targets():
+    queries = discovery_queries(['Risk Product Lead', 'AI Researcher'], ['Custom Fintech'], [], 10)
+    assert len(queries) == 2
+    assert all('Custom Fintech' in q for q in queries)
+    assert all('Northwestern' not in q for q in queries)
+
+def test_shared_background_creates_additional_queries():
+    queries = discovery_queries(['Data Scientist'], ['Acme'], ['Vassar College'], 10)
+    assert len(queries) == 2
+    assert 'Vassar College' in queries[1]
+
+def test_empty_company_or_role_returns_no_queries():
+    assert discovery_queries(['Product Manager'], [], [], 10) == []
+    assert discovery_queries([], ['Visa'], [], 10) == []
