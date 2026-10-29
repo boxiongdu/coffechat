@@ -41,7 +41,7 @@ with tab0:
     roles_text = st.text_area('Current roles', value='Associate Product Manager, Product Manager', height=75, placeholder='Associate Product Manager, Data Scientist')
     schools_text = st.text_input('Shared background (optional)', value='', placeholder='Northwestern University, Vassar College — or leave blank')
     def parse_targets(value):
-        return list(dict.fromkeys(part.strip() for part in value.replace('\\n', ',').split(',') if part.strip()))
+        return list(dict.fromkeys(part.strip() for part in value.replace(chr(10), ',').split(',') if part.strip()))
     companies = parse_targets(companies_text)
     roles = parse_targets(roles_text)
     schools = parse_targets(schools_text)
