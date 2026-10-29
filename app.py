@@ -2,7 +2,7 @@ import os
 from datetime import date
 import pandas as pd
 import streamlit as st
-from discovery import (discovery_queries, search_url, init_discovery, save_lead, get_leads, edit_lead, extract_profile_notes, TARGET_ROLES, TARGET_COMPANIES, TARGET_SCHOOLS)
+from discovery import (discovery_queries, search_url, init_discovery, save_lead, get_leads, edit_lead, extract_profile_notes)
 from core import (STAGES, connect, get_contacts, get_contact, score, add_contact,
                   set_status, save_draft, manual_draft, csv_export, seed_demo)
 
@@ -36,11 +36,19 @@ tab0,tab1,tab2,tab3,tab4 = st.tabs(['🔎 Discover candidates', '📋 Pipeline',
 with tab0:
     st.subheader('Discover candidates')
     st.caption('Open public-web searches yourself, save relevant pages to a review inbox, and verify details before promotion. No API key, scraping, or automatic outreach.')
-    companies=st.multiselect('Target companies', TARGET_COMPANIES, default=['Visa','Stripe','Block'])
-    roles=st.multiselect('Target roles', TARGET_ROLES, default=TARGET_ROLES[:2])
-    schools=st.multiselect('Shared background', TARGET_SCHOOLS, default=['Northwestern University'])
-    max_queries=st.slider('Maximum search queries',1,12,4)
+    st.caption('Enter multiple values separated by commas or new lines.')
+    companies_text = st.text_area('Target companies', value='Visa, Stripe, Block', height=75, placeholder='Visa, Stripe, Capital One')
+    roles_text = st.text_area('Current roles', value='Associate Product Manager, Product Manager', height=75, placeholder='Associate Product Manager, Data Scientist')
+    schools_text = st.text_input('Shared background (optional)', value='', placeholder='Northwestern University, Vassar College — or leave blank')
+    def parse_targets(value):
+        return list(dict.fromkeys(part.strip() for part in value.replace('\\n', ',').split(',') if part.strip()))
+    companies = parse_targets(companies_text)
+    roles = parse_targets(roles_text)
+    schools = parse_targets(schools_text)
+    max_queries=st.slider('Maximum search queries',1,24,8)
     queries=discovery_queries(roles,companies,schools,max_queries) if companies and roles else []
+    if not companies or not roles:
+        st.info('Enter at least one target company and one current role to generate searches.')
     with st.expander('Preview searches'):
         for q in queries: st.code(q)
     st.markdown('#### Open a public-web search')
@@ -60,7 +68,7 @@ with tab0:
     st.divider()
     st.markdown('#### Research inbox')
     leads=get_leads(con)
-    if not leads: st.info('No discovered pages yet. Configure a Brave Search API key or use the manual profile-review workflow below.')
+    if not leads: st.info('No saved public-web pages yet. Open a suggested search and add promising pages, or use LinkedIn-assisted review below.')
     for item in leads:
         if item['review_status']=='Dismissed': continue
         with st.expander(f"{item['source_title'] or item['source_url']} · {item['review_status']}"):
