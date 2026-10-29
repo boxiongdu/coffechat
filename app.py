@@ -1,10 +1,11 @@
 import os
+from urllib.parse import quote_plus
 from datetime import date
 import pandas as pd
 import streamlit as st
-from discovery import (discovery_queries, brave_search, init_discovery, save_lead, get_leads, edit_lead, extract_profile_notes, TARGET_ROLES, TARGET_COMPANIES, TARGET_SCHOOLS)
+from discovery import (discovery_queries, search_url, init_discovery, save_lead, get_leads, edit_lead, extract_profile_notes, TARGET_ROLES, TARGET_COMPANIES, TARGET_SCHOOLS)
 from core import (STAGES, connect, get_contacts, get_contact, score, add_contact,
-                  set_status, save_draft, draft_with_ai, manual_draft, csv_export, seed_demo)
+                  set_status, save_draft, manual_draft, csv_export, seed_demo)
 
 st.set_page_config(page_title='Networking Agent', page_icon='🤝', layout='wide')
 st.title('🤝 Networking Agent')
@@ -14,9 +15,7 @@ init_discovery(con)
 
 with st.sidebar:
     st.header('Settings')
-    api_key = st.text_input('OpenAI API key (optional)', value=os.getenv('OPENAI_API_KEY', ''), type='password', help='Used only for on-demand message generation. Never stored in SQLite.')
-    model = st.text_input('AI model', os.getenv('OPENAI_MODEL', 'gpt-5.5'))
-    brave_key = st.text_input('Brave Search API key (optional)', value=os.getenv('BRAVE_SEARCH_API_KEY', ''), type='password', help='Only used to find independently published public web pages. Not sent to LinkedIn.')
+    st.caption('No API keys needed. Candidate discovery and message drafts are human-reviewed.')
     st.divider()
     if st.button('Add example: Darrian Mankin', use_container_width=True):
         if seed_demo(con): st.success('Example added')
@@ -37,7 +36,7 @@ for col, label, value in zip(cols, ['Contacts', 'Pending invitations', 'Chats sc
 tab0,tab1,tab2,tab3,tab4 = st.tabs(['🔎 Discover candidates', '📋 Pipeline', '➕ Add contact', '✍️ Outreach workspace', '⏰ Follow-ups'])
 with tab0:
     st.subheader('Discover candidates')
-    st.caption('Uses Brave Search API to discover independent public biographies and interviews. Search results are leads, NOT verified people. No LinkedIn browser control, scraping, or automatic outreach.')
+    st.caption('Open public-web searches yourself, save relevant pages to a review inbox, and verify details before promotion. No API key, scraping, or automatic outreach.')
     companies=st.multiselect('Target companies', TARGET_COMPANIES, default=['Visa','Stripe','Block'])
     roles=st.multiselect('Target roles', TARGET_ROLES, default=TARGET_ROLES[:2])
     schools=st.multiselect('Shared background', TARGET_SCHOOLS, default=['Northwestern University'])
@@ -45,18 +44,20 @@ with tab0:
     queries=discovery_queries(roles,companies,schools,max_queries) if companies and roles else []
     with st.expander('Preview searches'):
         for q in queries: st.code(q)
-    if st.button('Search the public web', disabled=not brave_key or not bool(queries), type='primary'):
-        found=[]
-        with st.spinner('Searching independently published pages...'):
-            for q in queries:
-                try: found.extend(brave_search(q,brave_key,5))
-                except Exception as e:
-                    st.warning(f'Search failed: {str(e)[:180]}')
-                    break
-        for lead in found:
-            try: save_lead(con,lead)
-            except ValueError: pass
-        st.success(f'Search returned {len(found)} qualifying pages. Review leads below; they are not yet verified contacts.')
+    st.markdown('#### Open a public-web search')
+    for idx, q in enumerate(queries):
+        st.link_button(f"Search {idx+1}: {q[:85]}", search_url(q))
+    st.caption('Search opens in your browser; the app does not automatically collect results.')
+    with st.form('add_public_source'):
+        source_url = st.text_input('Public page URL (HTTPS; not LinkedIn)')
+        source_title = st.text_input('Page title')
+        source_excerpt = st.text_area('Relevant profile evidence / short notes')
+        if st.form_submit_button('Save public page to research inbox'):
+            try:
+                save_lead(con, {'url': source_url, 'title': source_title, 'snippet': source_excerpt})
+                st.success('Source saved for verification. Review it below.')
+            except Exception as e:
+                st.error(f'Could not save source: {e}')
     st.divider()
     st.markdown('#### Research inbox')
     leads=get_leads(con)
@@ -164,16 +165,9 @@ with tab3:
         draft_key='connection_draft' if kind=='connection' else 'chat_draft'
         unique=f"draft_{c['id']}_{kind}"
         if unique not in st.session_state: st.session_state[unique]=c[draft_key] or manual_draft(c,kind)
-        left,right=st.columns(2)
-        with left:
-            if st.button('Generate with AI',disabled=not bool(api_key),help='Requires API key'):
-                try:
-                    with st.spinner('Writing personalized draft...'):
-                        st.session_state[unique]=draft_with_ai(c,kind,api_key,model=model)
-                except Exception as e: st.error(f'Generation failed: {e}')
-        with right:
-            if st.button('Use offline starter draft'):
-                st.session_state[unique]=manual_draft(c,kind)
+        if st.button('Generate offline draft'):
+            st.session_state[unique]=manual_draft(c,kind)
+        st.caption('Templates use your verified contact details; no AI service is called.')
         text=st.text_area('Edit draft before sending',key=unique,height=145)
         if kind=='connection':
             st.caption(f'{len(text)} characters; aim for ≤ 260 for broad compatibility with LinkedIn invitation limits.')
@@ -200,4 +194,4 @@ with tab4:
             st.caption(f"{c['status']} · Last outreach: {c['last_contact'] or 'not recorded'}")
             st.link_button('View profile', c['linkedin_url'])
 st.divider()
-st.caption('Local-only SQLite database. AI generation is optional and sends only manually entered profile fields to the selected model. No LinkedIn automation.')
+st.caption('Local SQLite storage; cloud filesystem is not persistent. No third-party API calls for search or writing, and no LinkedIn automation.')
