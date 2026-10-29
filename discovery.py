@@ -1,7 +1,8 @@
 """Candidate discovery through an authorized search API; no LinkedIn site automation."""
 import sqlite3
 from urllib.parse import urlparse
-import requests
+import ipaddress
+from urllib.parse import quote_plus
 
 TARGET_ROLES = ['Associate Product Manager', 'Product Manager', 'Technical Product Manager', 'AI Product Manager']
 TARGET_COMPANIES = ['Visa', 'Stripe', 'Block', 'Mastercard', 'Capital One', 'PayPal']
@@ -32,16 +33,9 @@ def safe_source_url(url):
         return False
 
 
-def brave_search(query, api_key, count=8):
-    if not api_key:
-        raise ValueError('Add a Brave Search API key in the sidebar to run public-web discovery.')
-    response = requests.get('https://api.search.brave.com/res/v1/web/search',
-        params={'q': query, 'count': min(max(count, 1), 20), 'safesearch': 'moderate'},
-        headers={'X-Subscription-Token': api_key, 'Accept':'application/json'}, timeout=18)
-    response.raise_for_status()
-    items = response.json().get('web', {}).get('results', [])
-    return [dict(title=i.get('title',''),url=i.get('url',''),snippet=i.get('description',''),query=query)
-            for i in items if safe_source_url(i.get('url',''))]
+def search_url(query):
+    """Generate a public-web search link; visiting the link is user initiated."""
+    return 'https://www.google.com/search?q=' + quote_plus(query)
 
 
 def init_discovery(con):
